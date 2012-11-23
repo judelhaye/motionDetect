@@ -5,11 +5,35 @@ import cv2.cv as cv
 from datetime import datetime
 import time
 
+import smtplib
+from email.mime.text import MIMEText
+
+
+##
+# TODO mailSending : - ne pas avoir à écrire en dur le mot de passe
+#                    - piece jointe : une photo de la scene
+#
 class MotionDetectorAdaptative():
     """ detecteur de mouvement basé sur openCV"""    
     def onChange(self, val): #gere le changement de valeur par l'user, threshold = sensibilitée
         self.threshold = val
     
+    def sendMail(self):
+        user = 'mail@sending.tld' #adresse mail pour l'envoie
+        passwd = 'your passwd' # mot de passe de l'adresse d'envoie
+        recv = 'you@recveive.tld' # adresse qui va recevoir le mail 
+        text = "something as moved behind me !"
+        msg = MIMEText(text)
+        msg['From'] = user
+        msg['To'] = recv
+        msg['Subject'] = "MotionDetect Alert !"
+        serv = smtplib.SMTP('smtp.mailsever.tld', 587) #le server smtp de l'adresse d'envoi
+        serv.ehlo()
+        serv.login(user, passwd)
+        serv.sendmail(user, recv, msg.as_string())
+        serv.close()
+
+
     def __init__(self,threshold=10, doRecord=True, showWindows=True):
         self.writer = None
         self.font = None
@@ -60,6 +84,7 @@ class MotionDetectorAdaptative():
                     self.trigger_time = instant #Update trigger
                     if instant > started +10:# on laisse 10 secondes a la cam pour qu'elle  s'ajuste en luminosité etc ... 
                         print "Something is moving !"
+                        self.sendMail()
                         if self.doRecord: #set isRecording=True only if we record a video
                             self.isRecording = True
                 #on dessine les contours en temps réel
