@@ -13,15 +13,14 @@ Dependencies :
 - python-opencv
 - a camera
 
-use your camera as a motion detector, can record a 10s video and 
+use your camera as a motion detector, can record a (poor quality) 10s video and 
 send mail with a capture as attachment.
 
 ## TODO 
 
- * refacton this Frankenstein monster
- * gove it a more 2019ish flavor
- * finish email notification 
- * sms alerting
- * run as a daemon 
- * docker image
-
+ * refactor this Frankenstein monster
+ * give it a more 2019ish flavor
+ * polish email notification 
+ * is sms alerting REALLY a good idea ? 
+ * ensure it become as evil as a daemon 
+ * find a container for this daemon and ask a docker to send it in high seas
