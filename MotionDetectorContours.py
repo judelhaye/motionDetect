@@ -1,14 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import cv2.cv as cv
-from datetime import datetime
+import sys
 import time
+import cv2 as cv
+import argparse
 
-import smtplib
-from email.mime.text import MIMEText
-from email.MIMEImage import MIMEImage
-from email.MIMEMultipart import MIMEMultipart
+from datetime import datetime
+from mailer import sendMail
 
 
 ##
@@ -23,31 +22,18 @@ class MotionDetectorAdaptative():
         """
         self.threshold = val
 
-    def sendMail(self, attach):
-        user = 'sender@domain.tld'  # adresse mail pour l'envoie
-        passwd = 'Password'  # mot de passe de l'adresse d'envoie
-        recv = 'receiver@domain.tld'  # adresse qui va recevoir le mail
-        text = "something moved !"
-        msg = MIMEMultipart()
-        msg['From'] = "pywatcher"
-        msg['To'] = recv
-        msg['Subject'] = "MotionDetect Alert !"
-        msg.attach(MIMEText(text))
-        msg.attach(MIMEImage(file(attach).read()))
-
-        serv = smtplib.SMTP_SSL('smtp.domain.tld', 465)  # le server smtp
-        serv.ehlo()
-        serv.login(user, passwd)
-        serv.sendmail(user, recv, msg.as_string())
-        serv.close()
-
-    def __init__(self, threshold=10, doRecord=True, showWindows=True):
+    def __init__(self, threshold=10,
+                    doRecord=True,
+                    sendEmmail=False,
+                    showWindows=True,
+                    credential=None):
         self.writer = None
         self.font = None
         self.doRecord = doRecord  # enregistrer en cas de mouvement ou pas
         self.show = showWindows  # montrer la video ou pas
         self.frame = None
-
+        self.sendEmmail= sendEmmail
+        self.credential = credential
         self.capture = cv.CaptureFromCAM(0)
         self.frame = cv.QueryFrame(self.capture)  # take a frame form cam
         if doRecord:  # si on prévoit d'enregistrer, on prepare ce qu'il faut
@@ -87,16 +73,17 @@ class MotionDetectorAdaptative():
                 if self.somethingHasMoved(): #et que quelquechose bouge ...
                     self.trigger_time = instant #Update trigger
                     if instant > started +10:# on laisse 10 secondes a la cam pour qu'elle  s'ajuste en luminosité etc ...
-                        print "Something is moving !"
-                        cv.SaveImage("toSend.jpg",currentframe)
-                        self.sendMail("toSend.jpg")
+                        print("Something is moving !")
+                        if self.sendEmmail:
+                            cv.SaveImage("toSend.jpg",currentframe)
+                            sendMail("toSend.jpg", self.credentials)
                         if self.doRecord: #set isRecording=True only if we record a video
                             self.isRecording = True
                 #on dessine les contours en temps réel
                 cv.DrawContours (currentframe, self.currentcontours, (0, 0, 255), (0, 255, 0), 1, 2, cv.CV_FILLED)
             else:
                 if instant >= self.trigger_time +10: #Record during 10 seconds
-                    print "Stop recording"
+                    print("Stop recording")
                     self.isRecording = False
                 else:
                     cv.PutText(currentframe,datetime.now().strftime("%b %d, %H:%M:%S"), (25,30),self.font, 0) #Put date on the frame
@@ -152,7 +139,26 @@ class MotionDetectorAdaptative():
         else:
             return False
 
+def main(argv):
+    parser = argparse.ArgumentParser(description='enhanced motion detector')
+    parser.add_argument('-m', '--mail', help="enable mailing feature",
+                            action='store_true' )
+    parser.add_argument('-u', '--user', help="SMTP account")
+    parser.add_argument('-p', '--passwd', help="SMTP account")
+    parser.add_argument('-s', '--server', help="SMTP server")
+    parser.add_argument('-r', 'recv', help="mail To")
+
+    args = parser.parse_args()
+
+    if args.mail:
+        credential = [args.user, args.passwd, args.server, args.recv]
+        MotionDetectorAdaptative(doRecord=True,
+                                    sendEmmail=True,
+                                    credential=credential).run()
+    else:
+        detect = MotionDetectorAdaptative(doRecord=True)
+        detect.run()
+
 
 if __name__=="__main__":
-    detect = MotionDetectorAdaptative(doRecord=True)
-    detect.run()
+    main(sys.argv)
